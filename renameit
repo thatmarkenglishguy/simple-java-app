@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+if [ -z ${BASH_SOURCE} ]; then
+  script_dir=$(readlink -f $(dirname "${0}"))
+else
+  script_dir="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+
+rename_to=${1}
+target_dir=${rename_to}
+
+if [ -z "${rename_to}" ]
+then
+  echo 'renameit NEWNAME'
+elif [ -d "${target_dir}" ]
+then
+  echo "Sorry. '${target_dir}' already exists."
+else
+  cp -r "${script_dir}"/simple-java-app "${target_dir}"
+  rm -rf "${target_dir}"/target
+  case $(uname -o) in
+    Darwin)
+      grep -lr 'simple-java-app' "${target_dir}" --exclude-dir 'target' --exclude-dir '.git' --exclude renameit | xargs -I {} sed -i '' 's/simple-java-app/'"${rename_to}"'/g' {}
+      ;;
+    *)
+      grep -lr 'simple-java-app' "${target_dir}" --exclude-dir 'target' --exclude-dir '.git' --exclude renameit | xargs -I {} sed -i'' 's/simple-java-app/'"${rename_to}"'/g' {}
+      ;;
+  esac
+
+
+  while read rename
+  do
+    mv ${rename} ${rename/simple-java-app/${rename_to}}
+  done < <(find "${target_dir}" -name '*simple-java-app*' -type d)
+
+  while read rename
+  do
+    mv ${rename} ${rename/simple-java-app/${rename_to}}
+  done < <(find "${target_dir}" -name '*simple-java-app*' -type f)
+
+  if [ -d "${target_dir}" ]
+  then
+    pushd "${target_dir}"
+    mvn clean
+    mvn package
+    ./runit
+    rm -rf .git
+    git init
+    git add --all
+    git commit -m "${rename_to} Initial app."
+    popd
+  fi
+
+  echo
+  echo '--------------'
+  echo 'Open the project in IntelliJ, right click "pom.xml" and if not already imported import as maven project. Otherwise "Maven>Reimport".'
+fi
